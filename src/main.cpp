@@ -526,7 +526,7 @@ void loop()
   
 
   // Sending telemetry every telemetrySendInterval time
-  if (millis() - previousDataSend > telemetrySendInterval)
+  if (millis() - previousDataSend > telemetrySendInterval && thermocoupleTemp != 0.00)
   {
     if (!reconnect())
     {
