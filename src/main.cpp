@@ -10,26 +10,48 @@
 
 #include <Wire.h>
 
-/* OLED ZONE */
+/* TINY OLED ZONE */
+// #include <SPI.h>
+// #include <Adafruit_GFX.h>
+// #include <Adafruit_SSD1306.h>
+
+// void displayOledText(int, int);
+
+// #define SCREEN_WIDTH 128 // OLED display width, in pixels
+// #define SCREEN_HEIGHT 32 // OLED display height, in pixels
+
+// // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+// // The pins for I2C are defined by the Wire-library.
+// // On an arduino UNO:       A4(SDA), A5(SCL)
+// // On an arduino MEGA 2560: 20(SDA), 21(SCL)
+// // On an arduino LEONARDO:   2(SDA),  3(SCL), ...
+// #define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
+// #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+// Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+/* END TINY OLED ZONE */
+
+/* BIG OLED ZONE */
+#include <U8x8lib.h>
+
+#ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#endif
 
-void displayOledText(int, int);
+U8X8_SSD1322_NHD_256X64_4W_SW_SPI u8x8(/* clock=*/2, /* data=*/4, /* cs=*/0, /* dc=*/5, /* reset=*/26);
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+// 1	Ground	                    gnd
+// 2	V+ (3.3V)	                3v
+// 4	D0/SCLK	                    2
+// 5	D1/SDIN	                    4
+// 16	CS (chip select)	        0
+// 14	DC (data/command select)	5
+// 15	RST (reset)	                26
 
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-// The pins for I2C are defined by the Wire-library.
-// On an arduino UNO:       A4(SDA), A5(SCL)
-// On an arduino MEGA 2560: 20(SDA), 21(SCL)
-// On an arduino LEONARDO:   2(SDA),  3(SCL), ...
-#define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+void displayOledTextBig(String, String);
+void displayOledTextStatus(String);
 
-/* END OLED ZONE */
+/* END BIG OLED ZONE */
 
 /* MAX31856 ZONE */
 #include <Adafruit_MAX31856.h>
@@ -239,8 +261,8 @@ ThingsBoard tb(espClient, MAX_MESSAGE_SIZE);
 // todo - add captive portal for configuration?
 void joinWifi()
 {
-  Serial.println("scan start");
-
+  Serial.println("wifi scan start");
+  displayOledTextStatus("wifi scan start");
   // WiFi.scanNetworks will return the number of networks found
   int n = WiFi.scanNetworks();
 
@@ -255,10 +277,10 @@ void joinWifi()
       if (WiFi.SSID(i) == knownWifi[j][0])
       {
 
-        Serial.print("Connecting to ");
+        Serial.println("Connecting to ");
 
         Serial.println(knownWifi[j][0]);
-
+        displayOledTextStatus("Connecting to " + (String)knownWifi[j][0]);
         WiFi.mode(WIFI_STA);
         WiFi.begin(knownWifi[j][0], knownWifi[j][1]);
 
@@ -267,10 +289,12 @@ void joinWifi()
         //   delay(500);
         //   Serial.print(".");
         // }
+        delay(200);
         if (WiFi.status() == WL_CONNECTED)
         {
           Serial.println("");
           Serial.println("WiFi connected");
+          displayOledTextStatus("Connected to " + (String)knownWifi[j][0]);
           // Start the server
           // server.begin();
           // Serial.println("Server started");
@@ -285,8 +309,8 @@ void joinWifi()
         }
         else
         {
-          Serial.print("WiFi connection failed. Try again in " + checkForWifiInterval);
-          Serial.println(" milliseconds");
+          Serial.print("Retry wifi in (ms) " + (String)checkForWifiInterval);
+          displayOledTextStatus("Retry wifi in (ms) " + (String)checkForWifiInterval);
         }
 
         return;
@@ -311,7 +335,8 @@ const bool reconnect()
   // This is a failsafe to ensure we don't get stuck in a reboot loop
   if (wifiLastCheck >= checkForWifiInterval)
   {
-    Serial.println("Reconnecting to WiFi");
+    Serial.println("Reconnecting to WiFi.....");
+    displayOledTextStatus("Reconnecting to WiFi.....");
     joinWifi();
     wifiLastCheck = millis();
     if (WiFi.status() == WL_CONNECTED)
@@ -327,24 +352,47 @@ const bool reconnect()
   return false;
 }
 
-void displayOledText(int coldjunction, int temp)
+// void displayOledText(int coldjunction, int temp)
+// {
+//   display.clearDisplay();
+
+//   display.setTextSize(1);              // Normal 1:1 pixel scale
+//   display.setTextColor(SSD1306_WHITE); // Draw white text
+//   display.setCursor(0, 0);             // Start at top-left corner
+//   display.setTextSize(1);
+//   display.print(F("cj: ")); // Draw 1X-scale text
+//   display.print(coldjunction);
+//   display.println(F("c"));
+
+//   display.setCursor(0, 14);
+//   display.setTextSize(3); // Draw 3X-scale text
+//   display.print(temp);
+//   display.println(F("c"));
+//   display.display();
+//   delay(2000);
+// }
+
+void displayOledTextBig(String msg, String smlmsg)
 {
-  display.clearDisplay();
+  char msgChar[50];
+  msg.toCharArray(msgChar, 50);
+  u8x8.setFont(u8x8_font_inr46_4x8_r);
+  u8x8.drawString(0, 1, msgChar);
 
-  display.setTextSize(1);              // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0, 0);             // Start at top-left corner
-  display.setTextSize(1);
-  display.print(F("cj: ")); // Draw 1X-scale text
-  display.print(coldjunction);
-  display.println(F("c"));
+  char smlmsgChar[50];
+  smlmsg.toCharArray(smlmsgChar, 50);
+  u8x8.setFont(u8x8_font_chroma48medium8_r);
+  u8x8.drawString(25, 2, smlmsgChar);
+}
 
-  display.setCursor(0, 14);
-  display.setTextSize(3); // Draw 3X-scale text
-  display.print(temp);
-  display.println(F("c"));
-  display.display();
-  delay(2000);
+void displayOledTextStatus(String msg)
+{
+  // u8x8.refreshDisplay();
+  char msgChar[50];
+  msg.toCharArray(msgChar, 50);
+
+  u8x8.setFont(u8x8_font_chroma48medium8_r);
+  u8x8.drawString(0, 0, msgChar);
 }
 
 void SendDataToCloud(int temp, int cjtemp)
@@ -372,6 +420,7 @@ void SendDataToCloud(int temp, int cjtemp)
   // for more details
 #if THINGSBOARD_ENABLE_PROGMEM
   Serial.println(F("Sending temperature data..."));
+  // displayOledTextStatus(F("Sending temperature data..."));
 #else
   Serial.println("Sending temperature data...");
 #endif
@@ -379,6 +428,7 @@ void SendDataToCloud(int temp, int cjtemp)
 
 #if THINGSBOARD_ENABLE_PROGMEM
   Serial.println(F("Sending cold junction data..."));
+  // displayOledTextStatus(F("Sending cold junction data..."));
 #else
   Serial.println("Sending cold jucntion data...");
 #endif
@@ -394,38 +444,45 @@ void setup()
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // start screen
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
-  {
-    Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
-      ; // Don't proceed, loop forever
-  }
+  /* TINY OLED SCREEN */
 
-  // Show initial display buffer contents on the screen --
-  // the library initializes this with an Adafruit splash screen.
-  display.display();
-  delay(2000); // Pause for 2 seconds
+  //   // start screen
+  //   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  //   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+  //   {
+  //     Serial.println(F("SSD1306 allocation failed"));
+  //     for (;;)
+  //       ; // Don't proceed, loop forever
+  //   }
 
-  // Clear the buffer
-  display.clearDisplay();
+  //   // Show initial display buffer contents on the screen --
+  //   // the library initializes this with an Adafruit splash screen.
+  //   display.display();
+  //   delay(2000); // Pause for 2 seconds
 
-  // Draw a single pixel in white
-  display.drawPixel(10, 10, SSD1306_WHITE);
+  //   // Clear the buffer
+  //   display.clearDisplay();
 
-  // Show the display buffer on the screen. You MUST call display() after
-  // drawing commands to make them visible on screen!
-  display.display();
-  delay(2000);
-  displayOledText(0.00, 0.00);
+  //   // Draw a single pixel in white
+  //   display.drawPixel(10, 10, SSD1306_WHITE);
 
+  //   // Show the display buffer on the screen. You MUST call display() after
+  //   // drawing commands to make them visible on screen!
+  //   display.display();
+  //   delay(2000);
+  //   displayOledText(0.00, 0.00);
+  /* END TINY OLED SCREEN */
+
+  /* BIG OLED SCREEN */
+  u8x8.begin();
+  /* END BIG OLED SCREEN */
   // start thermocouple
 
   pinMode(DRDY_PIN, INPUT);
 
   if (!maxthermo.begin())
   {
+    displayOledTextStatus("Could not initialize thermocouple.");
     Serial.println("Could not initialize thermocouple.");
     while (1)
       delay(10);
@@ -508,10 +565,10 @@ void loop()
   int count = 0;
   while (digitalRead(DRDY_PIN))
   {
-    if (count++ > 2000)
+    if (count++ > 5000)
     {
       count = 0;
-      // Serial.println("Timeout waiting for DRDY");
+      displayOledTextStatus("Timeout waiting for DRDY");
     }
   }
   thermocoupleTemp = (int)maxthermo.readThermocoupleTemperature();
@@ -522,8 +579,8 @@ void loop()
   Serial.print("CJ Temperature: ");
   Serial.println(thermocoupleColdJunctionTemp);
 
-  displayOledText(thermocoupleColdJunctionTemp, thermocoupleTemp);
-  
+  //   displayOledText(thermocoupleColdJunctionTemp, thermocoupleTemp);
+  displayOledTextBig(String(thermocoupleTemp) + "c", String(thermocoupleColdJunctionTemp) + "c");
 
   // Sending telemetry every telemetrySendInterval time
   if (millis() - previousDataSend > telemetrySendInterval && thermocoupleTemp != 0.00)
